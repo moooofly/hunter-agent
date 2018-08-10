@@ -1,0 +1,7 @@
+{
+    "debug": true,
+    "pidfile": "",
+    "shutdown-timeout": 15,
+    "log-level": "",
+    "raw-logs": false
+}
