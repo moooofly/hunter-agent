@@ -1,12 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"github.com/moooofly/hunter-agent/cli/debug"
 	"github.com/moooofly/hunter-agent/daemon"
 	"github.com/moooofly/hunter-agent/daemon/config"
@@ -14,7 +18,9 @@ import (
 	dopts "github.com/moooofly/hunter-agent/opts"
 	"github.com/moooofly/hunter-agent/pkg/pidfile"
 	customsig "github.com/moooofly/hunter-agent/pkg/signal"
+	"google.golang.org/grpc"
 
+	"github.com/census-instrumentation/opencensus-proto/gen-go/exporterproto"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
@@ -29,6 +35,8 @@ type DaemonCli struct {
 	configFile *string
 	flags      *pflag.FlagSet
 
+	// TODO: add more service here
+
 	d *daemon.Daemon
 }
 
@@ -38,18 +46,15 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	// 1. signal procession
 	stopc := make(chan bool)
 	defer close(stopc)
 
-	// 2. Daemon configuration
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
 
-	// 3. debug setting
 	if cli.Config.Debug {
 		debug.Enable()
 	}
@@ -60,19 +65,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		FullTimestamp:   true,
 	})
 
-	// 4. umask setting
 	if err := setDefaultUmask(); err != nil {
 		return fmt.Errorf("Failed to set umask: %v", err)
 	}
 
-	// Create the daemon root before we create ANY other files
-	/*
-		if err := daemon.CreateDaemonRoot(cli.Config); err != nil {
-			return err
-		}
-	*/
-
-	// 5. agent pidfile
 	if cli.Pidfile != "" {
 		pf, err := pidfile.New(cli.Pidfile)
 		if err != nil {
@@ -89,6 +85,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		cli.Config.Hosts = make([]string, 1)
 	}
 
+	// setup grpc server here
+	// TODO: setup more serivice here
 	hosts, err := loadListeners(cli)
 	if err != nil {
 		return fmt.Errorf("Failed to load listeners: %v", err)
@@ -108,15 +106,24 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	logrus.Info("Daemon has completed initialization")
 
-	// FIXME: add metrics output here
-
 	cli.d = d
 
+	// reload the configuration by USR2 signal.
 	cli.setupConfigReloadTrap()
 
-	// FIXME: block here by channel
+	serveAPIWait := make(chan error)
+	// TODO: add flow control metrics here
+	if cli.Config.MetricsAddress == "" {
+		return fmt.Errorf("cli.Config.MetricsAddress must not be \"\" currently")
+	}
+	startMetricsServer(cli.Config.MetricsAddress, serveAPIWait)
+	errAPI := <-serveAPIWait
 
 	shutdownDaemon(d)
+
+	if errAPI != nil {
+		return fmt.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
+	}
 
 	return nil
 }
@@ -173,11 +180,14 @@ func shutdownDaemon(d *daemon.Daemon) {
 }
 
 func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
-	conf := opts.daemonConfig
 	flags := opts.flags
+	conf := opts.daemonConfig
 	conf.Debug = opts.Debug
-	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
+	conf.Hosts = opts.Hosts
+	conf.Brokers = opts.Brokers
+	conf.Topic = opts.Topic
+	conf.Partition = opts.Partition
 
 	if opts.configFile != "" {
 		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
@@ -223,15 +233,113 @@ func loadListeners(cli *DaemonCli) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
+
+		go serveGRPC(ls[0], cli)
+
+		logrus.Debugf("--> Serve %s", ls[0].Addr().String())
+		logrus.Infof("Listener created on %s (%s)", proto, addr)
 		hosts = append(hosts, protoAddrParts[1])
 
-		// FIXME: just for avoid warning
-		fmt.Println(ls)
-		//cli.api.Accept(addr, ls...)
+		// TODO: add more service here
 	}
 
 	return hosts, nil
+}
+
+// ---------
+
+func newAsyncProducer(brokerList []string) sarama.AsyncProducer {
+
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
+	config.Producer.Compression = sarama.CompressionSnappy   // Compress messages
+	config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
+
+	producer, err := sarama.NewAsyncProducer(brokerList, config)
+	if err != nil {
+		logrus.Fatalln("Failed to start Sarama producer:", err)
+	}
+
+	// We will just log to STDOUT if we're not able to produce messages.
+	// Note: messages will only be returned here after all retry attempts are exhausted.
+	go func() {
+		for err := range producer.Errors() {
+			logrus.Println("Failed to write access log entry:", err)
+		}
+	}()
+
+	return producer
+}
+
+func serveGRPC(l net.Listener, cli *DaemonCli) {
+	s := grpc.NewServer()
+	p := newAsyncProducer(cli.Config.Brokers)
+	defer func() {
+		if err := p.Close(); err != nil {
+			logrus.Println("Failed to close producer", err)
+		}
+	}()
+
+	exporterproto.RegisterExportServer(s, &server{
+		//topic:     "jaeger-spans-test-001",
+		topic:     cli.Topic,
+		partition: cli.Partition,
+		producer:  p,
+	})
+	if err := s.Serve(l); err != nil {
+		logrus.Errorf("Failed to serve: %v", err)
+	}
+}
+
+type server struct {
+	topic     string
+	partition string
+	producer  sarama.AsyncProducer
+}
+
+func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		// Spans --> []*traceproto.Span
+		for _, sp := range in.Spans {
+			// 将 protobuf 数据转换为 trace.SpanData 结构数据
+			//sd := protoToSpanData(s)
+
+			m, err := json.Marshal(sp)
+			if err != nil {
+				logrus.Errorf("failed when marshalling the span: %s\n", err.Error())
+				return err
+			}
+			//fmt.Println("---> m :", m)
+			fmt.Printf("---> span: %v\n", sp)
+
+			s.producer.Input() <- &sarama.ProducerMessage{
+				Topic: s.topic,
+				Key:   sarama.StringEncoder(s.partition),
+				Value: sarama.ByteEncoder(m),
+			}
+		}
+	}
+}
+
+func (s *server) ExportMetrics(stream exporterproto.Export_ExportMetricsServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Println(in)
+	}
 }
 
 // ---------

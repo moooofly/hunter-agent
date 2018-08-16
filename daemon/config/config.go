@@ -15,21 +15,27 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// Config defines the configuration of a hunter-agent daemon.
+// Config defines the configuration of the Hunter agent.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line uses.
 type Config struct {
-	Pidfile string `json:"pidfile,omitempty"`  // 1
-	RawLogs bool   `json:"raw-logs,omitempty"` // 1
+	Pidfile string `json:"pidfile,omitempty"`
 	Root    string `json:"data-root,omitempty"`
+	RawLogs bool   `json:"raw-logs,omitempty"`
 
-	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
-	// to stop when daemon is being shutdown
-	ShutdownTimeout int `json:"shutdown-timeout,omitempty"` // 1
+	// ShutdownTimeout is the timeout value (in seconds) the agent will wait for something
+	// to stop when Hunter agent is being shutdown
+	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
 
 	Debug    bool     `json:"debug,omitempty"`
-	Hosts    []string `json:"hosts,omitempty"`
 	LogLevel string   `json:"log-level,omitempty"`
+	Hosts    []string `json:"hosts,omitempty"`
+
+	Brokers   []string `json:"brokers,omitempty"`
+	Topic     string   `json:topic,omitempty`
+	Partition string   `json:partition,omitempty`
+
+	MetricsAddress string `json:"metrics-addr,omitempty"`
 
 	sync.Mutex
 	ValuesSet map[string]interface{} `json:"-"`
@@ -48,8 +54,7 @@ func (conf *Config) IsValueSet(name string) bool {
 // New returns a new fully initialized Config struct
 func New() *Config {
 	config := Config{}
-	//config.LogConfig.Config = make(map[string]string)
-
+	// FIXME: do some initialization here
 	return &config
 }
 

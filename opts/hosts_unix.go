@@ -15,13 +15,59 @@ var DefaultUnixSocket = "/var/run/hunter-agent.sock"
 // DefaultTCPPort Default TCP Port used if only the protocol is provided to -H flag e.g. hunter-agent -H tcp://
 var DefaultTCPPort = 12345 // Default TCP Port
 // DefaultTCPHost Default TCP Host used if only port is provided to -H flag e.g. hunter-agent -H tcp://:8080
-const DefaultTCPHost = "localhost"
+const DefaultTCPHost = "0.0.0.0"
 
 // DefaultTCPEndpoint constant defines the default host string used by hunter-agent.
 var DefaultTCPEndpoint = fmt.Sprintf("tcp://%s:%d", DefaultTCPHost, DefaultTCPPort)
 
 // DefaultUnixEndpoint constant defines the default host string used by hunter-agent and exporter
 var DefaultUnixEndpoint = fmt.Sprintf("unix://%s", DefaultUnixSocket)
+
+// DefaultBrokerHost defines the default broker host string used by hunter-agent.
+var DefaultBrokerHost = "tcp://0.0.0.0:9092"
+
+// ValidateBrokerHost validates that the specified string is a valid broker host and returns it.
+func ValidateBrokerHost(val string) (string, error) {
+	host := strings.TrimSpace(val)
+	// The empty string means default and is not handled by parseDaemonHost
+	if host != "" {
+		_, err := parseBrokerHost(host)
+		if err != nil {
+			return val, err
+		}
+	}
+	return val, nil
+}
+
+// ParseBrokerHost set defaults for a Daemon host string
+func ParseBrokerHost(val string) (string, error) {
+	host := strings.TrimSpace(val)
+	if host == "" {
+		host = DefaultBrokerHost
+	} else {
+		var err error
+		host, err = parseBrokerHost(host)
+		if err != nil {
+			return val, err
+		}
+	}
+	return host, nil
+}
+
+// parseBrokerHost parses the specified address and returns an address that will be used as broker host.
+func parseBrokerHost(addr string) (string, error) {
+	addrParts := strings.SplitN(addr, "://", 2)
+	if len(addrParts) == 1 && addrParts[0] != "" {
+		addrParts = []string{"tcp", addrParts[0]}
+	}
+
+	switch addrParts[0] {
+	case "tcp":
+		return ParseTCPAddr(addrParts[1], DefaultBrokerHost)
+	default:
+		return "", fmt.Errorf("Invalid broker address format: %s", addr)
+	}
+}
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
