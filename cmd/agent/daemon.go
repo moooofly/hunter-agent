@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -11,16 +10,19 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/protobuf/proto"
 	"github.com/moooofly/hunter-agent/cli/debug"
 	"github.com/moooofly/hunter-agent/daemon"
 	"github.com/moooofly/hunter-agent/daemon/config"
 	"github.com/moooofly/hunter-agent/daemon/listeners"
+	"github.com/moooofly/hunter-agent/gen-go/dumpproto"
 	dopts "github.com/moooofly/hunter-agent/opts"
 	"github.com/moooofly/hunter-agent/pkg/pidfile"
 	customsig "github.com/moooofly/hunter-agent/pkg/signal"
 	"google.golang.org/grpc"
 
 	"github.com/census-instrumentation/opencensus-proto/gen-go/exporterproto"
+	"github.com/census-instrumentation/opencensus-proto/gen-go/traceproto"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
@@ -281,7 +283,6 @@ func serveGRPC(l net.Listener, cli *DaemonCli) {
 	}()
 
 	exporterproto.RegisterExportServer(s, &server{
-		//topic:     "jaeger-spans-test-001",
 		topic:     cli.Topic,
 		partition: cli.Partition,
 		producer:  p,
@@ -289,6 +290,15 @@ func serveGRPC(l net.Listener, cli *DaemonCli) {
 	if err := s.Serve(l); err != nil {
 		logrus.Errorf("Failed to serve: %v", err)
 	}
+}
+
+func dumpSpans(spans []*traceproto.Span) ([]byte, error) {
+	ds := &dumpproto.DumpSpans{Spans: spans}
+	serialized, err := proto.Marshal(ds)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
 }
 
 type server struct {
@@ -307,24 +317,21 @@ func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error 
 			return err
 		}
 
-		// Spans --> []*traceproto.Span
+		// debug
 		for _, sp := range in.Spans {
-			// 将 protobuf 数据转换为 trace.SpanData 结构数据
-			//sd := protoToSpanData(s)
-
-			m, err := json.Marshal(sp)
-			if err != nil {
-				logrus.Errorf("failed when marshalling the span: %s\n", err.Error())
-				return err
-			}
-			//fmt.Println("---> m :", m)
 			fmt.Printf("---> span: %v\n", sp)
+		}
 
-			s.producer.Input() <- &sarama.ProducerMessage{
-				Topic: s.topic,
-				Key:   sarama.StringEncoder(s.partition),
-				Value: sarama.ByteEncoder(m),
-			}
+		dump, err := dumpSpans(in.Spans)
+		if err != nil {
+			logrus.Errorf("dumpSpans err: %v", err)
+			return err
+		}
+
+		s.producer.Input() <- &sarama.ProducerMessage{
+			Topic: s.topic,
+			Key:   sarama.StringEncoder(s.partition),
+			Value: sarama.ByteEncoder(dump),
 		}
 	}
 }
