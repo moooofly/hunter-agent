@@ -25,12 +25,8 @@ type Daemon struct {
 	configStore *config.Config
 	shutdown    bool
 
-	machineMemory uint64
-
-	diskUsageRunning int32
-	pruneRunning     int32
-	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
-	startupDone      chan struct{}
+	hosts       map[string]bool // hosts stores the addresses the daemon is listening on
+	startupDone chan struct{}
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -67,13 +63,12 @@ func NewDaemon(config *config.Config) (daemon *Daemon, err error) {
 
 	// set up SIGUSR1 handler on Unix-like systems to dump Go routine stacks
 	stackDumpDir := config.Root
+	logrus.Debugf("--> config.Root: %v", config.Root)
 	d.setupDumpStackTrap(stackDumpDir)
 
 	if err := configureMaxThreads(config); err != nil {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
-
-	//go d.execCommandGC()
 
 	logrus.WithFields(logrus.Fields{
 		"version": version.Version,
@@ -86,23 +81,6 @@ func NewDaemon(config *config.Config) (daemon *Daemon, err error) {
 func (daemon *Daemon) waitForStartupDone() {
 	<-daemon.startupDone
 }
-
-// FIXME: shutdown my service
-/*
-func (daemon *Daemon) shutdownContainer(c *container.Container) error {
-	stopTimeout := c.StopTimeout()
-
-	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, stopTimeout); err != nil {
-		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
-	}
-
-	// Wait without timeout for the container to exit.
-	// Ignore the result.
-	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
-	return nil
-}
-*/
 
 // ShutdownTimeout returns the timeout (in seconds) before containers are forcibly
 // killed during shutdown. The default timeout can be configured both on the daemon
@@ -137,24 +115,7 @@ func (daemon *Daemon) ShutdownTimeout() int {
 func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 
-	/*
-		if daemon.containers != nil {
-			logrus.Debugf("daemon configured with a %d seconds minimum shutdown timeout", daemon.configStore.ShutdownTimeout)
-			logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.ShutdownTimeout())
-				daemon.containers.ApplyAll(func(c *container.Container) {
-					if !c.IsRunning() {
-						return
-					}
-					logrus.Debugf("stopping %s", c.ID)
-					if err := daemon.shutdownContainer(c); err != nil {
-						logrus.Errorf("Stop container error: %v", err)
-						return
-					}
-					logrus.Debugf("container stopped %s", c.ID)
-				})
-		}
-	*/
-
+	// FIXME: do something here
 	return nil
 }
 
@@ -184,37 +145,8 @@ func configureMaxThreads(config *config.Config) error {
 
 // setupDaemonProcess sets various settings for the daemon's process
 func setupDaemonProcess(config *config.Config) error {
-	// setup the daemons oom_score_adj
-	/*
-		if err := setupOOMScoreAdj(config.OOMScoreAdjust); err != nil {
-			return err
-		}
-	*/
 	return nil
 }
-
-/*
-func setupOOMScoreAdj(score int) error {
-	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	stringScore := strconv.Itoa(score)
-	_, err = f.WriteString(stringScore)
-	if os.IsPermission(err) {
-		// Setting oom_score_adj does not work in an
-		// unprivileged container. Ignore the error, but log
-		// it if we appear not to be in that situation.
-		if !rsystem.RunningInUserNS() {
-			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
-		}
-		return nil
-	}
-
-	return err
-}
-*/
 
 func (d *Daemon) setupDumpStackTrap(root string) {
 	c := make(chan os.Signal, 1)

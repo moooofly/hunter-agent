@@ -21,7 +21,7 @@ func newDaemonCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:           "hunter-agent [OPTIONS]",
-		Short:         "This is an agent for hunter system as a proxy.",
+		Short:         "This is an agent running as a proxy of Hunter system.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cli.NoArgs,
@@ -36,9 +36,8 @@ func newDaemonCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolP("version", "v", false, "Print version information and quit")
-	flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "Daemon configuration file")
-	opts.InstallFlags(flags)
-	installConfigFlags(opts.daemonConfig, flags)
+	opts.InstallCommonOptionsFlags(flags)
+	installDaemonConfigFlags(opts.daemonConfig, flags)
 
 	return cmd
 }
