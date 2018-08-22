@@ -1,7 +1,7 @@
 {
     "debug": true,
-    "pidfile": "",
+    "pidfile": "/var/run/hunter-agent.pid",
     "shutdown-timeout": 15,
-    "log-level": "",
+    "log-level": "info",
     "raw-logs": false
 }
