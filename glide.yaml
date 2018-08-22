@@ -1,0 +1,45 @@
+package: github.com/moooofly/hunter-agent
+license: MIT
+owners:
+- name: moooofly
+  email: centos.sf@gmail.com
+  homepage: https://github.com/moooofly/
+import:
+- package: github.com/Shopify/sarama
+  version: ~1.17.0
+- package: github.com/census-instrumentation/opencensus-proto
+  subpackages:
+  - gen-go/exporterproto
+  - gen-go/traceproto
+- package: github.com/docker/go-connections
+  version: ~0.4.0
+  subpackages:
+  - sockets
+- package: github.com/docker/go-metrics
+- package: github.com/docker/go-units
+  version: ~0.3.3
+- package: github.com/golang/protobuf
+  version: ~1.2.0
+  subpackages:
+  - proto
+- package: github.com/imdario/mergo
+  version: ~0.3.6
+- package: github.com/pkg/errors
+  version: ~0.8.0
+- package: github.com/sirupsen/logrus
+  version: ~1.0.6
+- package: github.com/spf13/cobra
+  version: ~0.0.3
+- package: github.com/spf13/pflag
+  version: ~1.0.2
+- package: golang.org/x/sys
+  subpackages:
+  - unix
+- package: google.golang.org/grpc
+  version: ~1.14.0
+testImport:
+- package: gotest.tools
+  version: ~2.1.0
+  subpackages:
+  - assert
+  - assert/cmp
