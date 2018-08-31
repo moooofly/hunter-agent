@@ -19,7 +19,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
-	rootCmd.SetVersionTemplate("Hunter agent version {{.Version}}\n")
+	rootCmd.SetVersionTemplate(versionTemplate)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
@@ -129,3 +129,15 @@ Run '{{.CommandPath}} COMMAND --help' for more information on a command.
 
 var helpTemplate = `
 {{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
+
+var versionTemplate = `
+ __ __  __ __  ____   ______    ___  ____          ____   ____    ___  ____   ______
+ |  |  ||  |  ||    \ |      |  /  _]|    \        /    | /    |  /  _]|    \ |      |
+ |  |  ||  |  ||  _  ||      | /  [_ |  D  )_____ |  o  ||   __| /  [_ |  _  ||      |
+ |  _  ||  |  ||  |  ||_|  |_||    _]|    /|     ||     ||  |  ||    _]|  |  ||_|  |_|
+ |  |  ||  :  ||  |  |  |  |  |   [_ |    \|_____||  _  ||  |_ ||   [_ |  |  |  |  |
+ |  |  ||     ||  |  |  |  |  |     ||  .  \      |  |  ||     ||     ||  |  |  |  |
+ |__|__| \__,_||__|__|  |__|  |_____||__|\_|      |__|__||___,_||_____||__|__|  |__|
+
+{{.Version}}
+`

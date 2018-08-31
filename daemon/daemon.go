@@ -71,8 +71,9 @@ func NewDaemon(config *config.Config) (daemon *Daemon, err error) {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"version": version.Version,
-		"commit":  version.GitCommit,
+		"version":    version.Version,
+		"commit":     version.GitCommit,
+		"build time": version.BuildTime,
 	}).Info("Hunter agent")
 
 	return d, nil
