@@ -71,6 +71,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("Failed to set umask: %v", err)
 	}
 
+	// Create the daemon root before we create ANY other files
+	if err := daemon.CreateDaemonRoot(cli.Config); err != nil {
+		return err
+	}
+
 	if cli.Pidfile != "" {
 		pf, err := pidfile.New(cli.Pidfile)
 		if err != nil {
@@ -156,6 +161,7 @@ func (cli *DaemonCli) reloadConfig() {
 
 func (cli *DaemonCli) stop() {
 	// do some cleanups
+	logrus.Debug("---> do some cleanups here.")
 }
 
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case

@@ -6,14 +6,12 @@
 package daemon // import "github.com/moooofly/hunter-agent/daemon"
 
 import (
-	"io/ioutil"
+	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
-	"strconv"
-	"strings"
 
 	"github.com/moooofly/hunter-agent/daemon/config"
+	"github.com/moooofly/hunter-agent/pkg/fileutils"
 	stackdump "github.com/moooofly/hunter-agent/pkg/signal"
 	"github.com/moooofly/hunter-agent/version"
 	"github.com/sirupsen/logrus"
@@ -125,30 +123,30 @@ func (daemon *Daemon) IsShuttingDown() bool {
 	return daemon.shutdown
 }
 
-// ------
+// CreateDaemonRoot creates the root for the daemon
+func CreateDaemonRoot(config *config.Config) error {
+	// get the canonical path to the Hunter agent root directory
+	var realRoot string
+	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
+		realRoot = config.Root
+	} else {
+		realRoot, err = getRealPath(config.Root)
+		if err != nil {
+			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+		}
+	}
 
-// configureMaxThreads sets the Go runtime max threads threshold
-// which is 90% of the kernel setting from /proc/sys/kernel/threads-max
-func configureMaxThreads(config *config.Config) error {
-	mt, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
-	if err != nil {
-		return err
-	}
-	mtint, err := strconv.Atoi(strings.TrimSpace(string(mt)))
-	if err != nil {
-		return err
-	}
-	maxThreads := (mtint / 100) * 90
-	debug.SetMaxThreads(maxThreads)
-	logrus.Debugf("Golang's threads limit set to %d", maxThreads)
-	return nil
+	return setupDaemonRoot(config, realRoot)
 }
 
-// setupDaemonProcess sets various settings for the daemon's process
-func setupDaemonProcess(config *config.Config) error {
-	return nil
+// ----
+
+// for linux only
+func getRealPath(path string) (string, error) {
+	return fileutils.ReadSymlinkedDirectory(path)
 }
 
+// for unix
 func (d *Daemon) setupDumpStackTrap(root string) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGUSR1)
