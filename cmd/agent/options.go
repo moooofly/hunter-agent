@@ -47,7 +47,7 @@ func (o *daemonOptions) InstallCommonOptionsFlags(flags *pflag.FlagSet) {
 	flags.VarP(brokerhostOpt, "broker", "b", "The kafka broker host")
 
 	flags.StringVar(&o.Topic, "topic", "jaeger-spans-test-001", `The Kafka topic`)
-	flags.StringVar(&o.Partition, "partition", "", `The Kafka partition`)
+	flags.StringVar(&o.Partition, "partition", "", `The Kafka partition (If set, only one partition can be used, otherwise use traceid of span for multiple partitions instead)`)
 }
 
 // setLogLevel sets the logrus logging level

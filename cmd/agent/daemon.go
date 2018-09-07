@@ -92,8 +92,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		cli.Config.Hosts = make([]string, 1)
 	}
 
-	// setup grpc server here
-	// TODO: setup more serivice here
+	// TODO(moooofly): setup more serivice here
 	hosts, err := loadListeners(cli)
 	if err != nil {
 		return fmt.Errorf("Failed to load listeners: %v", err)
@@ -115,11 +114,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	cli.d = d
 
-	// reload the configuration by USR2 signal.
+	// reload the configuration by SIGHUP signal.
 	cli.setupConfigReloadTrap()
 
 	serveAPIWait := make(chan error)
-	// TODO: add flow control metrics here
+	// TODO(moooofly): add flow control metrics here
 	if cli.Config.MetricsAddress == "" {
 		return fmt.Errorf("cli.Config.MetricsAddress must not be \"\" currently")
 	}
@@ -244,9 +243,8 @@ func loadListeners(cli *DaemonCli) ([]string, error) {
 
 		go serveGRPC(ls[0], cli)
 
-		logrus.Debugf("--> Serve %s", ls[0].Addr().String())
 		logrus.Infof("Listener created on %s (%s)", proto, addr)
-		hosts = append(hosts, protoAddrParts[1])
+		hosts = append(hosts, addr)
 
 		// TODO: add more service here
 	}
@@ -293,6 +291,9 @@ func serveGRPC(l net.Listener, cli *DaemonCli) {
 		partition: cli.Partition,
 		producer:  p,
 	})
+
+	logrus.Debugf("--> Serve %s", l.Addr().String())
+
 	if err := s.Serve(l); err != nil {
 		logrus.Errorf("Failed to serve: %v", err)
 	}
@@ -323,9 +324,18 @@ func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error 
 			return err
 		}
 
-		// debug
-		for _, sp := range in.Spans {
-			fmt.Printf("---> span: %v\n", sp)
+		// FIXME: add debug switch
+		/*
+			for _, sp := range in.Spans {
+				logrus.Debugf("---> span: %v\n", sp)
+			}
+		*/
+
+		var key sarama.Encoder
+		if s.partition != "" {
+			key = sarama.StringEncoder(s.partition)
+		} else {
+			key = sarama.ByteEncoder(in.Spans[0].GetTraceId())
 		}
 
 		dump, err := dumpSpans(in.Spans)
@@ -336,7 +346,7 @@ func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error 
 
 		s.producer.Input() <- &sarama.ProducerMessage{
 			Topic: s.topic,
-			Key:   sarama.StringEncoder(s.partition),
+			Key:   key,
 			Value: sarama.ByteEncoder(dump),
 		}
 	}
@@ -351,7 +361,7 @@ func (s *server) ExportMetrics(stream exporterproto.Export_ExportMetricsServer) 
 		if err != nil {
 			return err
 		}
-		fmt.Println(in)
+		logrus.Debug(in)
 	}
 }
 
@@ -361,6 +371,7 @@ const defaultDaemonConfigFile = "/etc/hunter/agent.json"
 
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
+// for unix
 func setDefaultUmask() error {
 	desiredUmask := 0022
 	unix.Umask(desiredUmask)
@@ -371,7 +382,8 @@ func setDefaultUmask() error {
 	return nil
 }
 
-// setupConfigReloadTrap configures the USR2 signal to reload the configuration.
+// setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
+// for unix
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
