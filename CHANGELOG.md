@@ -1,3 +1,18 @@
+<a name="0.3.1"></a>
+# [0.3.1](https://github.com/moooofly/hunter-agent/compare/v0.3.0...v0.3.1) (2018-09-07)
+
+
+### Bug Fixes
+
+* fix goroutines dump issue, close [#6](https://github.com/moooofly/hunter-agent/issues/6) ([947736b](https://github.com/moooofly/hunter-agent/commit/947736b))
+
+
+### Features
+
+* add build flags and version log ([d771d26](https://github.com/moooofly/hunter-agent/commit/d771d26))
+
+
+
 <a name="0.3.0"></a>
 # [0.3.0](https://github.com/moooofly/hunter-agent/compare/v0.2.0...v0.3.0) (2018-08-22)
 
