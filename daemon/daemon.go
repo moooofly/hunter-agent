@@ -68,6 +68,8 @@ func NewDaemon(config *config.Config) (daemon *Daemon, err error) {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	// TODO(moooofly) add metric server here
+
 	logrus.WithFields(logrus.Fields{
 		"version":    version.Version,
 		"commit":     version.GitCommit,
