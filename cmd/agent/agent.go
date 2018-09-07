@@ -30,7 +30,10 @@ func newDaemonCommand() *cobra.Command {
 			return runDaemon(opts)
 		},
 		DisableFlagsInUseLine: true,
-		Version:               fmt.Sprintf("%s, build %s", version.Version, version.GitCommit),
+		Version: fmt.Sprintf("| % -20s | % -20s |\n| % -20s | % -20s |\n| % -20s | % -20s |\n",
+			"version", version.Version,
+			"git commit", version.GitCommit,
+			"build time", version.BuildTime),
 	}
 	cli.SetupRootCommand(cmd)
 

@@ -1,5 +1,9 @@
 BROKERS := $(shell docker port kafka-docker_kafka_1 9092/tcp)
 
+LDFLAGS += -X "github.com/moooofly/hunter-agent/version.GitCommit=$(shell git rev-parse --short HEAD)"
+LDFLAGS += -X "github.com/moooofly/hunter-agent/version.Version=$(shell cat VERSION)"
+LDFLAGS += -X "github.com/moooofly/hunter-agent/version.BuildTime=$(shell date -u '+%Y-%m-%d %I:%M:%S')"
+
 all:
 	@echo "Usage:"
 	@echo "  1. make local"
@@ -14,7 +18,7 @@ dev: build
 	./agent -H tcp://0.0.0.0:12345 -H unix:///var/run/hunter-agent.sock --metrics-addr 0.0.0.0:12346 --broker 10.1.8.95:9092 --topic jaeger-spans-test-001
 
 build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o agent cmd/agent/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o agent cmd/agent/*.go
 	@# not support MacOS yet
 	@#CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o agent.mac cmd/agent/*.go
 

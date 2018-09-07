@@ -3,7 +3,7 @@ package version // import "github.com/moooofly/hunter-agent/version"
 
 // Default build-time variable for library-import.
 // This file is overridden on build with build-time informations.
-const (
+var (
 	GitCommit = "library-import"
 	Version   = "library-import"
 	BuildTime = "library-import"
