@@ -22,20 +22,20 @@ type Config struct {
 	Pidfile string `json:"pidfile,omitempty"`
 	Root    string `json:"data-root,omitempty"`
 	RawLogs bool   `json:"raw-logs,omitempty"`
-
 	// ShutdownTimeout is the timeout value (in seconds) the agent will wait for something
 	// to stop when Hunter agent is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
+	// internal queue size for flow control
+	QueueSize      int    `json:"queue-size,omitempty"`
+	MetricsAddress string `json:"metrics-addr,omitempty"`
 
-	Debug    bool     `json:"debug,omitempty"`
-	LogLevel string   `json:"log-level,omitempty"`
-	Hosts    []string `json:"hosts,omitempty"`
-
+	// from daemonOptions
+	Debug     bool     `json:"debug,omitempty"`
+	LogLevel  string   `json:"log-level,omitempty"`
+	Hosts     []string `json:"hosts,omitempty"`
 	Brokers   []string `json:"brokers,omitempty"`
 	Topic     string   `json:topic,omitempty`
 	Partition string   `json:partition,omitempty`
-
-	MetricsAddress string `json:"metrics-addr,omitempty"`
 
 	sync.Mutex
 	ValuesSet map[string]interface{} `json:"-"`

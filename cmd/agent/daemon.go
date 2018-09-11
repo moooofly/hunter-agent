@@ -2,34 +2,29 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
-	"github.com/Shopify/sarama"
-	"github.com/golang/protobuf/proto"
 	"github.com/moooofly/hunter-agent/cli/debug"
 	"github.com/moooofly/hunter-agent/daemon"
 	"github.com/moooofly/hunter-agent/daemon/config"
 	"github.com/moooofly/hunter-agent/daemon/listeners"
-	"github.com/moooofly/hunter-agent/gen-go/dumpproto"
 	dopts "github.com/moooofly/hunter-agent/opts"
 	"github.com/moooofly/hunter-agent/pkg/pidfile"
 	customsig "github.com/moooofly/hunter-agent/pkg/signal"
 	"google.golang.org/grpc"
 
 	"github.com/census-instrumentation/opencensus-proto/gen-go/exporterproto"
-	"github.com/census-instrumentation/opencensus-proto/gen-go/traceproto"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
 )
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
-// ensure the formatted time isalways the same number of characters.
+// ensure the formatted time is always the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 type DaemonCli struct {
@@ -97,6 +92,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if err != nil {
 		return fmt.Errorf("Failed to load listeners: %v", err)
 	}
+
+	go logExpvars()
 
 	customsig.Trap(func() {
 		cli.stop()
@@ -189,6 +186,7 @@ func shutdownDaemon(d *daemon.Daemon) {
 func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	flags := opts.flags
 	conf := opts.daemonConfig
+
 	conf.Debug = opts.Debug
 	conf.LogLevel = opts.LogLevel
 	conf.Hosts = opts.Hosts
@@ -252,116 +250,24 @@ func loadListeners(cli *DaemonCli) ([]string, error) {
 	return hosts, nil
 }
 
-// ---------
-
-func newAsyncProducer(brokerList []string) sarama.AsyncProducer {
-
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
-	config.Producer.Compression = sarama.CompressionSnappy   // Compress messages
-	config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
-
-	producer, err := sarama.NewAsyncProducer(brokerList, config)
-	if err != nil {
-		logrus.Fatalln("Failed to start Sarama producer:", err)
-	}
-
-	// We will just log to STDOUT if we're not able to produce messages.
-	// Note: messages will only be returned here after all retry attempts are exhausted.
-	go func() {
-		for err := range producer.Errors() {
-			logrus.Println("Failed to write access log entry:", err)
-		}
-	}()
-
-	return producer
-}
-
 func serveGRPC(l net.Listener, cli *DaemonCli) {
 	s := grpc.NewServer()
-	p := newAsyncProducer(cli.Config.Brokers)
+	ss := newFlowControlServer(cli)
 	defer func() {
-		if err := p.Close(); err != nil {
+		if err := ss.producer.Close(); err != nil {
 			logrus.Println("Failed to close producer", err)
 		}
 	}()
 
-	exporterproto.RegisterExportServer(s, &server{
-		topic:     cli.Topic,
-		partition: cli.Partition,
-		producer:  p,
-	})
+	exporterproto.RegisterExportServer(s, ss)
 
 	logrus.Debugf("--> Serve %s", l.Addr().String())
+	logrus.Debugf("   --> queue-size of pipeline    : %d", cli.QueueSize)
+	logrus.Debugf("   --> topic setting of kafka    : %q", cli.Topic)
+	logrus.Debugf("   --> partition setting of kafka: %q", cli.Partition)
 
 	if err := s.Serve(l); err != nil {
 		logrus.Errorf("Failed to serve: %v", err)
-	}
-}
-
-func dumpSpans(spans []*traceproto.Span) ([]byte, error) {
-	ds := &dumpproto.DumpSpans{Spans: spans}
-	serialized, err := proto.Marshal(ds)
-	if err != nil {
-		return nil, err
-	}
-	return serialized, nil
-}
-
-type server struct {
-	topic     string
-	partition string
-	producer  sarama.AsyncProducer
-}
-
-func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error {
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		// FIXME: add debug switch
-		/*
-			for _, sp := range in.Spans {
-				logrus.Debugf("---> span: %v\n", sp)
-			}
-		*/
-
-		var key sarama.Encoder
-		if s.partition != "" {
-			key = sarama.StringEncoder(s.partition)
-		} else {
-			key = sarama.ByteEncoder(in.Spans[0].GetTraceId())
-		}
-
-		dump, err := dumpSpans(in.Spans)
-		if err != nil {
-			logrus.Errorf("dumpSpans err: %v", err)
-			return err
-		}
-
-		s.producer.Input() <- &sarama.ProducerMessage{
-			Topic: s.topic,
-			Key:   key,
-			Value: sarama.ByteEncoder(dump),
-		}
-	}
-}
-
-func (s *server) ExportMetrics(stream exporterproto.Export_ExportMetricsServer) error {
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		logrus.Debug(in)
 	}
 }
 

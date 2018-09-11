@@ -14,16 +14,16 @@ type daemonOptions struct {
 	// from config file
 	daemonConfig *config.Config
 	// from command line
-	flags      *pflag.FlagSet
-	configFile string
+	flags *pflag.FlagSet
 
 	// common options
-	Debug     bool
-	LogLevel  string
-	Hosts     []string
-	Brokers   []string
-	Topic     string
-	Partition string
+	configFile string
+	Debug      bool
+	LogLevel   string
+	Hosts      []string
+	Brokers    []string
+	Topic      string
+	Partition  string
 }
 
 // newDaemonOptions returns a new daemonOptions
