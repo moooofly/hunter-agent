@@ -12,6 +12,8 @@
 
 This is an agent for hunter system as a proxy.
 
+> The related exporter is [opencensus-go-exporter-agent](https://github.com/moooofly/opencensus-go-exporter-agent).
+
 ## Design
 
 - The location of hunter agent and the whole architecture
@@ -34,8 +36,10 @@ You can put `agent.json.template` into `/etc/hunter/` with name `agent.json`.
 
 ## Signal Usage
 
-- SIGHUP: Reload config file
-- SIGUSR1: Dump stacks of all goroutines
-- SIGPIPE: Ignore
-- SIGINT or SIGTERM: Your custom `cleanup` is called, then the process is terminated.
-- SIGQUIT: Cause an exit without cleanup, with a goroutine dump preceding exit.
+| signal | function |
+| -- | -- |
+| SIGHUP | Reload config file |
+| SIGUSR1 | Dump stacks of all goroutines |
+| SIGPIPE | Ignored |
+| SIGINT/SIGTERM | Call your custom `cleanup` function, then terminate the process. |
+| SIGQUIT | Cause an exit without cleanup, with a goroutine dump preceding exit. |
