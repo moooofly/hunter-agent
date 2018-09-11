@@ -1,3 +1,14 @@
+<a name="0.4.0"></a>
+# [0.4.0](https://github.com/moooofly/hunter-agent/compare/v0.3.1...v0.4.0) (2018-09-11)
+
+
+### Features
+
+* support flow control ability ([dff0a3c](https://github.com/moooofly/hunter-agent/commit/dff0a3c))
+* support multiple kafka partitions by traceid of spans ([28a822b](https://github.com/moooofly/hunter-agent/commit/28a822b))
+
+
+
 <a name="0.3.1"></a>
 # [0.3.1](https://github.com/moooofly/hunter-agent/compare/v0.3.0...v0.3.1) (2018-09-07)
 
