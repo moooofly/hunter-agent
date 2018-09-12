@@ -26,8 +26,21 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 
 	daemon.reloadDebug(conf, attributes)
 	daemon.reloadShutdownTimeout(conf, attributes)
+	daemon.reloadQueueSize(conf, attributes)
 
 	return nil
+}
+
+// reloadDebug updates configuration with queue size option
+// and updates the passed attributes
+func (daemon *Daemon) reloadQueueSize(conf *config.Config, attributes map[string]string) {
+	// update corresponding configuration
+	if conf.IsValueSet("queue-size") {
+		daemon.configStore.QueueSize = conf.QueueSize
+		logrus.Debugf("Reset Queue Size: %d", daemon.configStore.QueueSize)
+	}
+	// prepare reload event attributes with updatable configurations
+	attributes["queue-size"] = fmt.Sprintf("%t", daemon.configStore.QueueSize)
 }
 
 // reloadDebug updates configuration with Debug option

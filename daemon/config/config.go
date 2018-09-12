@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 
@@ -61,8 +62,17 @@ func New() *Config {
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
+	newConfig, err := getConflictFreeConfiguration(configFile, flags)
+	if err != nil {
+		if flags.Changed("config-file") || !os.IsNotExist(err) {
+			return fmt.Errorf("unable to configure the Docker daemon with file %s: %v", configFile, err)
+		}
+		newConfig = New()
+	}
 
-	newConfig := New()
+	if err := Validate(newConfig); err != nil {
+		return fmt.Errorf("file configuration validation failed (%v)", err)
+	}
 
 	reload(newConfig)
 	return nil
