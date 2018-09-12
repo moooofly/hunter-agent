@@ -1,3 +1,19 @@
+<a name="0.5.0"></a>
+# [0.5.0](https://github.com/moooofly/hunter-agent/compare/v0.4.0...v0.5.0) (2018-09-12)
+
+
+### Bug Fixes
+
+* fix configuration reload issue, close [#7](https://github.com/moooofly/hunter-agent/issues/7) ([e6e6a73](https://github.com/moooofly/hunter-agent/commit/e6e6a73))
+
+
+### Features
+
+* support metrics output when hunter agent existing ([1a3d9e0](https://github.com/moooofly/hunter-agent/commit/1a3d9e0))
+* support queue-size dynamic reloading ([7b4a52b](https://github.com/moooofly/hunter-agent/commit/7b4a52b))
+
+
+
 <a name="0.4.0"></a>
 # [0.4.0](https://github.com/moooofly/hunter-agent/compare/v0.3.1...v0.4.0) (2018-09-11)
 
