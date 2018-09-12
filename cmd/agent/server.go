@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -18,7 +17,6 @@ type server struct {
 	partition string
 	producer  sarama.AsyncProducer
 
-	wg       sync.WaitGroup
 	done     chan struct{}
 	pipeline chan *sarama.ProducerMessage
 }
@@ -95,9 +93,16 @@ func (s *server) ExportSpan(stream exporterproto.Export_ExportSpanServer) error 
 		var key sarama.Encoder
 		if s.partition != "" {
 			key = sarama.StringEncoder(s.partition)
+			// FIXME: add debug switch
+			//logrus.Debugf("partition: %s", s.partition)
 		} else {
 			key = sarama.ByteEncoder(in.Spans[0].GetTraceId())
+			// FIXME: add debug switch
+			//logrus.Debugf("partition: %s", fmt.Sprintf("%02x", in.Spans[0].GetTraceId()[:]))
 		}
+
+		// FIXME: add debug switch
+		//logrus.Debugf("len(in.Spans): %d\n", len(in.Spans))
 
 		dump, err := dumpSpans(in.Spans)
 		if err != nil {
