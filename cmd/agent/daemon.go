@@ -32,7 +32,7 @@ type DaemonCli struct {
 	configFile *string
 	flags      *pflag.FlagSet
 
-	// TODO: add more service here
+	// TODO(moooofly): add more service here
 
 	d *daemon.Daemon
 }
@@ -158,6 +158,7 @@ func (cli *DaemonCli) reloadConfig() {
 func (cli *DaemonCli) stop() {
 	// do some cleanups
 	logrus.Debug("---> do some cleanups here.")
+	logTotalExpvars()
 }
 
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
@@ -244,7 +245,7 @@ func loadListeners(cli *DaemonCli) ([]string, error) {
 		logrus.Infof("Listener created on %s (%s)", proto, addr)
 		hosts = append(hosts, addr)
 
-		// TODO: add more service here
+		// TODO(moooofly): add more service here
 	}
 
 	return hosts, nil

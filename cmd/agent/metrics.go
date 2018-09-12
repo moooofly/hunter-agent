@@ -18,6 +18,12 @@ var (
 	msgOut = expvar.NewInt("message-out")
 )
 
+var startTime time.Time
+
+func init() {
+	startTime = time.Now()
+}
+
 var defaultPeriod = 5 * time.Second
 
 // TODO(moooofly): support period setting by user
@@ -38,6 +44,15 @@ func logExpvars() {
 			logrus.Debugf("No non-zero metrics in the last %s", defaultPeriod)
 		}
 	}
+}
+
+func logTotalExpvars() {
+	vals := map[string]int64{}
+	prevVals := map[string]int64{}
+	snapshotExpvars(vals)
+	metrics := buildMetricsOutput(prevVals, vals)
+	logrus.Debugf("Total non-zero values: %s", metrics)
+	logrus.Debugf("Uptime: %s", time.Now().Sub(startTime))
 }
 
 // snapshotMap recursively walks expvar Maps and records their integer expvars
