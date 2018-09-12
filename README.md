@@ -29,9 +29,29 @@ This is an agent for hunter system as a proxy.
 ![protocol](https://raw.githubusercontent.com/moooofly/hunter-agent/master/docs/protocol.png)
 
 
+## Feature
+
+
 ## Config
 
 You can put `agent.json.template` into `/etc/hunter/` with name `agent.json`.
+
+Config sample:
+
+```
+{
+    "debug": true,
+    "shutdown-timeout": 15,
+    "queue-size":10,
+
+    "log-level": "debug",
+    "pidfile": "/var/run/hunter-agent.pid",
+    "data-root": "/var/lib/hunter",
+    "raw-logs": false
+}
+```
+
+## Document
 
 
 ## Signal Usage
