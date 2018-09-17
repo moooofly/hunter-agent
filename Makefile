@@ -29,4 +29,9 @@ docker:
 	docker build -t hunter-agent:$(shell git rev-parse --short HEAD) .
 
 docker_run:
-	docker run -it -p 12345:12345 -v /var/run:/var/run --rm hunter-agent:1726446 -H tcp://0.0.0.0:12345 -H unix:///var/run/hunter-agent.sock --metrics-addr 0.0.0.0:12346 --broker 10.1.8.95:9092 --topic jaeger-spans-test-001
+	docker run -it -p 12345:12345 -v /var/run:/var/run --rm hunter-agent:$(shell git rev-parse --short HEAD) \
+		-H tcp://0.0.0.0:12345 \
+		-H unix:///var/run/hunter-agent.sock \
+		--metrics-addr 0.0.0.0:12346 \
+		--broker 10.1.8.95:9092 \
+		--topic jaeger-spans-test-001
