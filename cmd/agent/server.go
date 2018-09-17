@@ -134,7 +134,7 @@ func (s *server) push(ms *sarama.ProducerMessage) bool {
 		return true
 	default:
 		// drop message if queue is full
-		drop.Add(1)
+		msgDrop.Add(1)
 		return false
 	}
 }

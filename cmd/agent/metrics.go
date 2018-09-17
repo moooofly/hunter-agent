@@ -9,19 +9,39 @@ import (
 	"time"
 
 	metrics "github.com/docker/go-metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	drop   = expvar.NewInt("overflow-drop")
-	msgIn  = expvar.NewInt("message-in")
-	msgOut = expvar.NewInt("message-out")
+	msgDrop = expvar.NewInt("messages-drop")
+	msgIn   = expvar.NewInt("messages-in")
+	msgOut  = expvar.NewInt("messages-out")
 )
 
 var startTime time.Time
 
 func init() {
 	startTime = time.Now()
+
+	expvarCollector := prometheus.NewExpvarCollector(map[string]*prometheus.Desc{
+		"messages-drop": prometheus.NewDesc(
+			"messages_drop_int",
+			"Kafka messages dropped as internal queue size overflow.",
+			nil, nil,
+		),
+		"messages-in": prometheus.NewDesc(
+			"messages_in_int",
+			"Kafka messages push into internal queue.",
+			nil, nil,
+		),
+		"messages-out": prometheus.NewDesc(
+			"messages_out_int",
+			"Kafka messages pop from internal queue.",
+			nil, nil,
+		),
+	})
+	prometheus.MustRegister(expvarCollector)
 }
 
 var defaultPeriod = 5 * time.Second
@@ -103,6 +123,7 @@ func startMetricsServer(addr string, w chan error) error {
 	mux.Handle("/metrics", metrics.Handler())
 
 	go func() {
+		logrus.Infof("Metric server created on (%s)", addr)
 		if err := http.Serve(l, mux); err != nil {
 			logrus.Errorf("serve metrics api: %s", err)
 			w <- nil

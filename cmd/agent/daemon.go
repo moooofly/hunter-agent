@@ -116,10 +116,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	serveAPIWait := make(chan error)
 	// TODO(moooofly): add flow control metrics here
-	if cli.Config.MetricsAddress == "" {
-		return fmt.Errorf("cli.Config.MetricsAddress must not be \"\" currently")
+	// FIXME: the trick here maybe not proper
+	if cli.Config.MetricsAddress != "" {
+		if err := startMetricsServer(cli.Config.MetricsAddress, serveAPIWait); err != nil {
+			return err
+		}
 	}
-	startMetricsServer(cli.Config.MetricsAddress, serveAPIWait)
 	errAPI := <-serveAPIWait
 
 	shutdownDaemon(d)
