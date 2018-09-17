@@ -1,3 +1,13 @@
+<a name="0.6.0"></a>
+# [0.6.0](https://github.com/moooofly/hunter-agent/compare/v0.5.0...v0.6.0) (2018-09-17)
+
+
+### Features
+
+* support Prometheus metrics ([b2365b8](https://github.com/moooofly/hunter-agent/commit/b2365b8))
+
+
+
 <a name="0.5.0"></a>
 # [0.5.0](https://github.com/moooofly/hunter-agent/compare/v0.4.0...v0.5.0) (2018-09-12)
 
